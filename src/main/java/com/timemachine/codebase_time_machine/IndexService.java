@@ -14,11 +14,14 @@ public class IndexService {
 
     private final RepoCloner cloner;
     private final CodeChunker chunker;
+    private final EmbeddingService embeddings;
     private final JdbcTemplate jdbc;
 
-    public IndexService(RepoCloner cloner, CodeChunker chunker, JdbcTemplate jdbc) {
+    public IndexService(RepoCloner cloner, CodeChunker chunker,
+                        EmbeddingService embeddings, JdbcTemplate jdbc) {
         this.cloner = cloner;
         this.chunker = chunker;
+        this.embeddings = embeddings;
         this.jdbc = jdbc;
     }
 
@@ -40,7 +43,9 @@ public class IndexService {
                     ps.setString(6, c.name());
                     ps.setString(7, c.content());
                 });
-        return Map.of("repo", repo, "chunks", chunks.size());
+
+        int embedded = embeddings.embedMissing(repo);
+        return Map.of("repo", repo, "chunks", chunks.size(), "embedded", embedded);
     }
 
     // Re-reads every saved line range from disk and checks the text really matches.

@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS code_chunks (
     id         BIGSERIAL PRIMARY KEY,
     repo       VARCHAR(200) NOT NULL,
@@ -9,3 +11,5 @@ CREATE TABLE IF NOT EXISTS code_chunks (
     content    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_code_chunks_repo ON code_chunks(repo);
+
+ALTER TABLE code_chunks ADD COLUMN IF NOT EXISTS embedding vector(384);
