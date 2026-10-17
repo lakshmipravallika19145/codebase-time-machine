@@ -1,13 +1,26 @@
 package com.timemachine.codebase_time_machine;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SearchService {
+
+    private static final int POOL = 20;   // how many results each librarian brings
+    private static final int RRF_K = 60;  // standard constant for rank fusion
+
+    private static final RowMapper<Hit> HIT_MAPPER = (rs, i) -> new Hit(
+            rs.getLong("id"), rs.getString("file_path"),
+            rs.getInt("start_line"), rs.getInt("end_line"),
+            rs.getString("kind"), rs.getString("name"),
+            rs.getString("content"), rs.getDouble("score"));
 
     private final EmbeddingService embeddings;
     private final JdbcTemplate jdbc;
@@ -17,13 +30,73 @@ public class SearchService {
         this.jdbc = jdbc;
     }
 
-    public List<Map<String, Object>> search(String repo, String question, int k) {
+    // Librarian 1: search by meaning
+    public List<Hit> vector(String repo, String question, int k) {
         String q = embeddings.embedQuery(question);
-        return jdbc.queryForList(
-                "SELECT file_path, start_line, end_line, kind, name, "
-                        + "1 - (embedding <=> ?::vector) AS score, left(content, 300) AS preview "
+        return jdbc.query(
+                "SELECT id, file_path, start_line, end_line, kind, name, content, "
+                        + "1 - (embedding <=> ?::vector) AS score "
                         + "FROM code_chunks WHERE repo = ? AND embedding IS NOT NULL "
                         + "ORDER BY embedding <=> ?::vector LIMIT ?",
-                q, repo, q, k);
+                HIT_MAPPER, q, repo, q, k);
+    }
+
+    // Librarian 2: search by exact words
+    public List<Hit> keyword(String repo, String question, int k) {
+        String tsQuery = toTsQuery(question);
+        if (tsQuery.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query(
+                "SELECT c.id, c.file_path, c.start_line, c.end_line, c.kind, c.name, c.content, "
+                        + "ts_rank_cd(c.tsv, q) AS score "
+                        + "FROM code_chunks c, to_tsquery('english', ?) q "
+                        + "WHERE c.repo = ? AND c.tsv @@ q "
+                        + "ORDER BY score DESC LIMIT ?",
+                HIT_MAPPER, tsQuery, repo, k);
+    }
+
+    // Both librarians, merged
+    public List<Hit> hybrid(String repo, String question, int k) {
+        Map<Long, Double> fused = new HashMap<>();
+        Map<Long, Hit> byId = new HashMap<>();
+        addRanks(vector(repo, question, POOL), fused, byId);
+        addRanks(keyword(repo, question, POOL), fused, byId);
+
+        // Real code usually matters more than tests, unless the question is about tests.
+        boolean wantsTests = question.toLowerCase().contains("test");
+        if (!wantsTests) {
+            fused.replaceAll((id, score) ->
+                    byId.get(id).filePath().contains("src/test/") ? score * 0.5 : score);
+        }
+
+        return fused.entrySet().stream()
+                .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
+                .limit(k)
+                .map(e -> byId.get(e.getKey()).withScore(e.getValue()))
+                .toList();
+    }
+
+    private void addRanks(List<Hit> hits, Map<Long, Double> fused, Map<Long, Hit> byId) {
+        for (int i = 0; i < hits.size(); i++) {
+            Hit h = hits.get(i);
+            fused.merge(h.id(), 1.0 / (RRF_K + i + 1), Double::sum);
+            byId.putIfAbsent(h.id(), h);
+        }
+    }
+
+    // "how is processCreationForm used?" -> "how | is | process | Creation | Form | used"
+    static String toTsQuery(String question) {
+        String spaced = question
+                .replaceAll("([a-z0-9])([A-Z])", "$1 $2")
+                .replaceAll("[^A-Za-z0-9]+", " ")
+                .trim();
+        if (spaced.isEmpty()) {
+            return "";
+        }
+        return Arrays.stream(spaced.split(" "))
+                .filter(t -> t.length() > 1)
+                .distinct()
+                .collect(Collectors.joining(" | "));
     }
 }

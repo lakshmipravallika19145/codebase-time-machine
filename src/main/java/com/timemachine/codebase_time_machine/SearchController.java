@@ -1,7 +1,6 @@
 package com.timemachine.codebase_time_machine;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,12 +18,18 @@ public class SearchController {
     }
 
     @GetMapping("/search")
-    public List<Map<String, Object>> search(@RequestParam("repo") String repo,
-                                            @RequestParam("q") String q,
-                                            @RequestParam(value = "k", defaultValue = "5") int k) {
+    public List<Hit> search(@RequestParam("repo") String repo,
+                            @RequestParam("q") String q,
+                            @RequestParam(value = "k", defaultValue = "5") int k,
+                            @RequestParam(value = "mode", defaultValue = "hybrid") String mode) {
         if (!RepoCloner.isValidName(repo)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bad repo name");
         }
-        return searchService.search(repo, q, Math.min(k, 20));
+        int limit = Math.min(k, 20);
+        return switch (mode) {
+            case "vector" -> searchService.vector(repo, q, limit);
+            case "keyword" -> searchService.keyword(repo, q, limit);
+            default -> searchService.hybrid(repo, q, limit);
+        };
     }
 }

@@ -13,3 +13,13 @@ CREATE TABLE IF NOT EXISTS code_chunks (
 CREATE INDEX IF NOT EXISTS idx_code_chunks_repo ON code_chunks(repo);
 
 ALTER TABLE code_chunks ADD COLUMN IF NOT EXISTS embedding vector(384);
+
+ALTER TABLE code_chunks ADD COLUMN IF NOT EXISTS tsv tsvector GENERATED ALWAYS AS (
+    to_tsvector('english',
+        regexp_replace(
+            regexp_replace(coalesce(file_path, '') || ' ' || coalesce(name, '') || ' ' || content,
+                           '([a-z0-9])([A-Z])', '\1 \2', 'g'),
+            '[^A-Za-z0-9]+', ' ', 'g'))
+) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_code_chunks_tsv ON code_chunks USING gin(tsv);
