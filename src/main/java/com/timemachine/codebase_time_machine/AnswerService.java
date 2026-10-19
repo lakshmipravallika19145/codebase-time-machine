@@ -20,7 +20,7 @@ public class AnswerService {
     private static final String NOT_FOUND = "Not found in the code.";
     // Brackets optional; the file name must have an extension, e.g. OwnerController.java:77-87
     private static final Pattern CITE = Pattern.compile(
-            "\\[?([^\\[\\]\\s:`*()\"'<>]+\\.[A-Za-z0-9]{1,6}):(\\d{1,7})-(\\d{1,7})\\]?");
+            "(?:\\[[ \\t]*)?\\[?([^\\[\\]\\s:`*()\"'<>]+\\.[A-Za-z0-9]{1,6}):(\\d{1,7})-(\\d{1,7})\\]?(?:[ \\t]*\\])?");
 
     private static final String SYSTEM = """
             You answer questions about a software project using ONLY the code excerpts provided.
