@@ -45,3 +45,15 @@ CREATE TABLE IF NOT EXISTS commit_chunks (
 );
 CREATE INDEX IF NOT EXISTS idx_commit_chunks_repo ON commit_chunks(repo);
 CREATE INDEX IF NOT EXISTS idx_commit_chunks_tsv ON commit_chunks USING gin(tsv);
+CREATE TABLE IF NOT EXISTS chunk_blame (
+    id           BIGSERIAL PRIMARY KEY,
+    chunk_id     BIGINT NOT NULL REFERENCES code_chunks(id) ON DELETE CASCADE,
+    repo         VARCHAR(200) NOT NULL,
+    hash         VARCHAR(40) NOT NULL,
+    author       TEXT,
+    committed_at TIMESTAMPTZ NOT NULL,
+    message      TEXT NOT NULL,
+    lines        INT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chunk_blame_chunk ON chunk_blame(chunk_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_blame_repo ON chunk_blame(repo);
