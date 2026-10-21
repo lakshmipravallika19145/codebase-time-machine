@@ -14,7 +14,8 @@ import org.springframework.stereotype.Service;
 public class SearchService {
 
     private static final int POOL = 20;   // how many results each librarian brings
-    private static final int RRF_K = 60;  // standard constant for rank fusion
+    private static final int RRF_K = 60; // standard constant for rank fusion
+    private static final double NON_CODE_FACTOR = 0.5; // SQL, HTML, docs and config chunks count half
 
     private static final RowMapper<Hit> HIT_MAPPER = (rs, i) -> new Hit(
             rs.getLong("id"), rs.getString("file_path"),
@@ -56,18 +57,38 @@ public class SearchService {
                 HIT_MAPPER, tsQuery, repo, k);
     }
 
-    // Both librarians, merged
+    // Both librarians, merged. Test files are down-weighted unless the question mentions tests.
     public List<Hit> hybrid(String repo, String question, int k) {
+        boolean wantsTests = question.toLowerCase().contains("test");
+        return hybridWith(repo, question, k, !wantsTests, 1.0, NON_CODE_FACTOR);
+    }
+
+    public List<Hit> hybridWith(String repo, String question, int k, boolean penalizeTests) {
+        return hybridWith(repo, question, k, penalizeTests, 1.0, 1.0);
+    }
+
+    public List<Hit> hybridWith(String repo, String question, int k,
+                                boolean penalizeTests, double keywordWeight) {
+        return hybridWith(repo, question, k, penalizeTests, keywordWeight, 1.0);
+    }
+
+    // keywordWeight: smaller = the keyword list counts for less.
+    // nonCodeFactor: smaller = SQL, HTML, docs and config chunks count for less,
+    // unless the question itself mentions such files.
+    public List<Hit> hybridWith(String repo, String question, int k, boolean penalizeTests,
+                                double keywordWeight, double nonCodeFactor) {
         Map<Long, Double> fused = new HashMap<>();
         Map<Long, Hit> byId = new HashMap<>();
-        addRanks(vector(repo, question, POOL), fused, byId);
-        addRanks(keyword(repo, question, POOL), fused, byId);
+        addRanks(vector(repo, question, POOL), fused, byId, 1.0);
+        addRanks(keyword(repo, question, POOL), fused, byId, keywordWeight);
 
-        // Real code usually matters more than tests, unless the question is about tests.
-        boolean wantsTests = question.toLowerCase().contains("test");
-        if (!wantsTests) {
+        if (penalizeTests) {
             fused.replaceAll((id, score) ->
                     byId.get(id).filePath().contains("src/test/") ? score * 0.5 : score);
+        }
+        if (nonCodeFactor < 1.0 && !mentionsNonCode(question)) {
+            fused.replaceAll((id, score) ->
+                    isNonCode(byId.get(id).filePath()) ? score * nonCodeFactor : score);
         }
 
         return fused.entrySet().stream()
@@ -77,10 +98,25 @@ public class SearchService {
                 .toList();
     }
 
-    private void addRanks(List<Hit> hits, Map<Long, Double> fused, Map<Long, Hit> byId) {
+    private static boolean isNonCode(String path) {
+        return !path.toLowerCase().matches(".*\\.(java|py|js|jsx|ts|tsx)$");
+    }
+
+    private static boolean mentionsNonCode(String question) {
+        String q = question.toLowerCase();
+        for (String w : List.of("sql", "schema", "template", "html", "css", "config", "properties",
+                "yaml", "yml", "xml", "readme", "docs", "script", "pom", "gradle")) {
+            if (q.contains(w)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void addRanks(List<Hit> hits, Map<Long, Double> fused, Map<Long, Hit> byId, double weight) {
         for (int i = 0; i < hits.size(); i++) {
             Hit h = hits.get(i);
-            fused.merge(h.id(), 1.0 / (RRF_K + i + 1), Double::sum);
+            fused.merge(h.id(), weight / (RRF_K + i + 1), Double::sum);
             byId.putIfAbsent(h.id(), h);
         }
     }

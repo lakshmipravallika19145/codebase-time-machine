@@ -57,3 +57,14 @@ CREATE TABLE IF NOT EXISTS chunk_blame (
 );
 CREATE INDEX IF NOT EXISTS idx_chunk_blame_chunk ON chunk_blame(chunk_id);
 CREATE INDEX IF NOT EXISTS idx_chunk_blame_repo ON chunk_blame(repo);
+CREATE TABLE IF NOT EXISTS eval_cases (
+    id         BIGSERIAL PRIMARY KEY,
+    repo       VARCHAR(200) NOT NULL,
+    question   TEXT NOT NULL,
+    file_path  TEXT NOT NULL,
+    name       TEXT,
+    start_line INT,
+    end_line   INT,
+    source     VARCHAR(20) NOT NULL DEFAULT 'manual'
+);
+CREATE INDEX IF NOT EXISTS idx_eval_cases_repo ON eval_cases(repo);
