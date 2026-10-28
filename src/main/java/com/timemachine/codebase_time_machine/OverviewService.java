@@ -30,9 +30,11 @@ public class OverviewService {
             Rules:
             1. Use only the material provided. Do not add features, technologies or claims that are not in it.
             2. Name a technology only if it appears in the README or the file descriptions.
-            3. If the material is unclear about something, leave it out instead of guessing.
-            4. Plain words, no marketing language, no bullet points, no headings.
-            5. Output only the paragraph.
+            3. Mention an architectural layer (for example "services") only if a file description or the README names it.
+            4. Do not generalize: if the material only mentions creating something, do not say it can also be updated or deleted.
+            5. If the material is unclear about something, leave it out instead of guessing.
+            6. Plain words, no marketing language, no bullet points, no headings.
+            7. Output only the paragraph.
             """;
 
     private final JdbcTemplate jdbc;
