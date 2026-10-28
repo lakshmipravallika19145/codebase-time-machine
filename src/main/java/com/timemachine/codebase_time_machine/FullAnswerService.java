@@ -45,7 +45,8 @@ public class FullAnswerService {
             7. Choose the excerpt that most directly answers the question. If the question is about creating or adding something, do not answer from an update or edit excerpt (and the other way round). If several excerpts are relevant, give a separate Where line for each.
             """;
 
-    private record BlameInfo(String hash, String author, String committedAt, String message, int lines) {}
+    private record BlameInfo(String hash, String author, String committedAt, String message, int lines) {
+    }
 
     private static final RowMapper<BlameInfo> BLAME_MAPPER = (rs, i) -> new BlameInfo(
             rs.getString("hash"), rs.getString("author"),
@@ -54,15 +55,22 @@ public class FullAnswerService {
 
     private final SearchService search;
     private final JdbcTemplate jdbc;
+    private final ProjectMapService projectMap;
     private final ChatClient chatClient;
 
-    public FullAnswerService(SearchService search, JdbcTemplate jdbc, ChatClient.Builder builder) {
+    public FullAnswerService(SearchService search, JdbcTemplate jdbc, ProjectMapService projectMap,
+                             ChatClient.Builder builder) {
         this.search = search;
         this.jdbc = jdbc;
+        this.projectMap = projectMap;
         this.chatClient = builder.build();
     }
 
     public Map<String, Object> answer(String repo, String question) {
+        // Questions about the whole project cannot be answered from a few retrieved excerpts.
+        if (ProjectMapService.isGlobalQuestion(question)) {
+            return projectMap.answer(repo);
+        }
         Integer blameRows = jdbc.queryForObject(
                 "SELECT count(*) FROM chunk_blame WHERE repo = ?", Integer.class, repo);
         if (blameRows == null || blameRows == 0) {
@@ -201,11 +209,13 @@ public class FullAnswerService {
         }
         return sb.toString();
     }
+
     // The "why ..." part of a question is answered from history, so don't let it steer the code search.
     static String retrievalQuery(String question) {
         String q = question.replaceAll("(?i)[,;]?\\s*(and\\s+)?(why|for what reason|what was the reason)\\b.*$", "").strip();
         return q.length() >= 8 ? q : question;
     }
+
     private static String firstLine(String s) {
         return s.strip().split("\\R", 2)[0];
     }
@@ -223,6 +233,7 @@ public class FullAnswerService {
     }
 
     // debugRaw is temporary, for debugging only. We'll remove it before deployment.
+    // debugRaw is temporary, for debugging only. It is removed from public responses.
     private Map<String, Object> result(String answer, Collection<Map<String, Object>> codeCites,
                                        Collection<Map<String, Object>> commitCites, int rejected,
                                        List<Hit> hits, String raw) {
@@ -234,6 +245,16 @@ public class FullAnswerService {
                 "sources", hits.stream()
                         .map(h -> h.filePath() + ":" + h.startLine() + "-" + h.endLine())
                         .toList(),
+                "coverage", coverage(hits),
                 "debugRaw", raw);
+    }
+
+    private static String coverage(List<Hit> hits) {
+        if (hits.isEmpty()) {
+            return "No code excerpts were retrieved.";
+        }
+        long files = hits.stream().map(Hit::filePath).distinct().count();
+        return "Based on " + hits.size() + " retrieved excerpts from " + files
+                + " files. This is not a full scan of the repository.";
     }
 }

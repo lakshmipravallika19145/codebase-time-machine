@@ -68,3 +68,10 @@ CREATE TABLE IF NOT EXISTS eval_cases (
     source     VARCHAR(20) NOT NULL DEFAULT 'manual'
 );
 CREATE INDEX IF NOT EXISTS idx_eval_cases_repo ON eval_cases(repo);
+CREATE TABLE IF NOT EXISTS file_summaries (
+    repo      VARCHAR(200) NOT NULL,
+    file_path TEXT NOT NULL,
+    summary   TEXT NOT NULL,
+    source    VARCHAR(10) NOT NULL,
+    PRIMARY KEY (repo, file_path)
+);

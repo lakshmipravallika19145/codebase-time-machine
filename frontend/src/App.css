@@ -257,3 +257,7 @@ button:disabled {
     height: auto;
   }
 }
+.msg .msgbox {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}

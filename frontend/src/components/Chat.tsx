@@ -68,11 +68,14 @@ export function Chat(p: Props) {
         )}
         {p.messages.map(m => (
           <div key={m.id} className={`msg ${m.role}${m.error ? ' error' : ''}`}>
-            {m.role === 'assistant' && !m.error ? (
-              <Answer text={m.text} onCode={p.onCode} onCommit={p.onCommit} />
-            ) : (
-              <div className="plain">{m.text}</div>
-            )}
+                        {m.role === 'assistant' && !m.error && m.mono ? (
+                          <pre className="msgbox">{m.text}</pre>
+                        ) : m.role === 'assistant' && !m.error ? (
+                          <Answer text={m.text} onCode={p.onCode} onCommit={p.onCommit} />
+                        ) : (
+                          <div className="plain">{m.text}</div>
+                        )}
+                        {m.role === 'assistant' && m.coverage && <div className="badge">{m.coverage}</div>}
             {m.role === 'assistant' && ((m.verified ?? 0) > 0 || (m.rejected ?? 0) > 0) && (
               <div className="badge">
                 {m.verified ?? 0} citation{m.verified === 1 ? '' : 's'} verified

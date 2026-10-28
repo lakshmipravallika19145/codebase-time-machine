@@ -52,7 +52,15 @@ export default function App() {
       const verified = (r.codeCitations?.length ?? 0) + commits.length
       setMessages(m => [
         ...m,
-        { id: replyId, role: 'assistant', text: r.answer, verified, rejected: r.rejectedCitations },
+                {
+                  id: replyId,
+                  role: 'assistant',
+                  text: r.answer,
+                  verified,
+                  rejected: r.rejectedCitations,
+                  coverage: r.coverage,
+                  mono: r.kind === 'project-map',
+                },
       ])
     } catch (e) {
       setMessages(m => [

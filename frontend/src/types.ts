@@ -26,6 +26,8 @@ export interface AskResponse {
   citations?: CommitCitation[]
   rejectedCitations: number
   sources: string[]
+  coverage?: string
+  kind?: string
 }
 
 export interface CommitDetails {
@@ -47,6 +49,8 @@ export interface ChatMessage {
   verified?: number
   rejected?: number
   error?: boolean
+  coverage?: string
+  mono?: boolean
 }
 
 export type Detail =
