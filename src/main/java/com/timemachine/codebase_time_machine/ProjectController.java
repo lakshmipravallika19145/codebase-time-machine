@@ -16,10 +16,12 @@ public class ProjectController {
 
     private final ProjectMapService projectMap;
     private final SummaryService summaries;
+    private final OverviewService overviews;
 
-    public ProjectController(ProjectMapService projectMap, SummaryService summaries) {
+    public ProjectController(ProjectMapService projectMap, SummaryService summaries, OverviewService overviews) {
         this.projectMap = projectMap;
         this.summaries = summaries;
+        this.overviews = overviews;
     }
 
     @GetMapping(value = "/tree", produces = "text/plain;charset=UTF-8")
@@ -42,6 +44,13 @@ public class ProjectController {
             }
         }
         return summaries.generate(repo, Math.max(1, Math.min(limit, 20)));
+    }
+
+    @PostMapping("/index-overview")
+    public Map<String, Object> indexOverview(@RequestBody Map<String, String> body) throws Exception {
+        String repo = body.get("repo");
+        requireValidName(repo);
+        return overviews.generate(repo);
     }
 
     private static void requireValidName(String repo) {

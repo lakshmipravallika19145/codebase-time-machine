@@ -75,3 +75,9 @@ CREATE TABLE IF NOT EXISTS file_summaries (
     source    VARCHAR(10) NOT NULL,
     PRIMARY KEY (repo, file_path)
 );
+CREATE TABLE IF NOT EXISTS project_overviews (
+    repo       VARCHAR(200) PRIMARY KEY,
+    overview   TEXT NOT NULL,
+    basis      TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

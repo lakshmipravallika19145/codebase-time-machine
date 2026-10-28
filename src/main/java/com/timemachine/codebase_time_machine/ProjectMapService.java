@@ -108,6 +108,13 @@ public class ProjectMapService {
         }
 
         StringBuilder out = new StringBuilder();
+        List<Map<String, Object>> ov = jdbc.queryForList(
+                "SELECT overview, basis FROM project_overviews WHERE repo = ?", repo);
+        if (!ov.isEmpty()) {
+            out.append("Overview [AI]\n").append(ov.get(0).get("overview")).append('\n')
+                    .append("Built from: ").append(ov.get(0).get("basis"))
+                    .append(". Written by AI, so it can be imperfect.\n\n");
+        }
         out.append("Project map of ").append(repo).append('\n')
                 .append(files.size()).append(" files in ").append(folders.size()).append(" folders. ")
                 .append("Descriptions: ").append(ai).append(" written by AI (marked [AI]), ")
