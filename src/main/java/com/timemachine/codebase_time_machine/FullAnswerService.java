@@ -56,17 +56,26 @@ public class FullAnswerService {
     private final SearchService search;
     private final JdbcTemplate jdbc;
     private final ProjectMapService projectMap;
+    private final FlowAnswerService flow;
     private final ChatClient chatClient;
 
     public FullAnswerService(SearchService search, JdbcTemplate jdbc, ProjectMapService projectMap,
-                             ChatClient.Builder builder) {
+                             FlowAnswerService flow, ChatClient.Builder builder) {
         this.search = search;
         this.jdbc = jdbc;
         this.projectMap = projectMap;
+        this.flow = flow;
         this.chatClient = builder.build();
     }
 
     public Map<String, Object> answer(String repo, String question) {
+        // Questions about a whole flow need several searches, not one.
+        if (FlowAnswerService.isFlowQuestion(question)) {
+            Map<String, Object> walk = flow.answer(repo, question);
+            if (walk != null) {
+                return walk;
+            }
+        }
         // Questions about the whole project cannot be answered from a few retrieved excerpts.
         if (ProjectMapService.isGlobalQuestion(question)) {
             return projectMap.answer(repo);

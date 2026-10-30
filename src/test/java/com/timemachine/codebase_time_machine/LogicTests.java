@@ -65,4 +65,21 @@ class LogicTests {
         assertEquals("Image asset.", FileRules.describe("public/logo.png"));
         assertNull(FileRules.describe("src/main/java/x/OwnerController.java"));
     }
+
+    @Test
+    void flowQuestionsAreRoutedToTheStepByStepPath() {
+        assertTrue(FlowAnswerService.isFlowQuestion(
+                "give the complete architecture of this project from login to live auction"));
+        assertTrue(FlowAnswerService.isFlowQuestion("explain the end to end flow of placing a bid"));
+        assertFalse(FlowAnswerService.isFlowQuestion("Where is a new owner saved?"));
+        assertFalse(FlowAnswerService.isFlowQuestion("Where are the uploaded files stored?"));
+    }
+
+    @Test
+    void planLinesAreParsedAndUnknownFilesAreDropped() {
+        String raw = "STAGE | Login | user signs in | a/Auth.java; b/Fake.java\n- STAGE | Bids | place a bid | a/Bid.java\nnoise";
+        var stages = FlowAnswerService.parsePlan(raw, java.util.Set.of("a/Auth.java", "a/Bid.java"));
+        assertEquals(2, stages.size());
+        assertEquals(java.util.List.of("a/Auth.java"), stages.get(0).files());
+    }
 }

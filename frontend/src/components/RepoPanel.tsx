@@ -72,11 +72,15 @@ export function RepoPanel({ repos, selected, loadError, onSelect, onIndexed }: P
 
       {busy && (
         <ol className="steps">
-          {STEPS.map((label, i) => (
-            <li key={label} className={i + 1 < step ? 'done' : i + 1 === step ? 'active' : ''}>
-              {label}
-            </li>
-          ))}
+          {STEPS.map((label, i) => {
+            const state = i + 1 < step ? 'done' : i + 1 === step ? 'active' : ''
+            return (
+              <li key={label} className={state}>
+                <span className="marker">{state === 'done' ? '✓' : state === 'active' ? '' : i + 1}</span>
+                {label}
+              </li>
+            )
+          })}
         </ol>
       )}
       {error && <p className="error">{error}</p>}

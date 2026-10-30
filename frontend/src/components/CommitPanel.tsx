@@ -29,15 +29,22 @@ export function CommitPanel({ repo, hash }: Props) {
 
   return (
     <div className="card">
-      <h2>Commit {hash.slice(0, 7)}</h2>
+      <h2>
+        Commit <span className="hash">{hash.slice(0, 7)}</span>
+      </h2>
       {error && <p className="error">{error}</p>}
       {!commit && !error && <p className="muted">Loading...</p>}
       {commit && (
         <>
-          <p className="muted">
-            {commit.author ?? 'unknown author'}, {new Date(commit.committed_at).toLocaleString()}
-            {commit.additions !== null && ` | +${commit.additions} -${commit.deletions}`}
-          </p>
+          <div className="commit-meta">
+            <span className="badge">{commit.author ?? 'unknown author'}</span>
+            <span className="badge">{new Date(commit.committed_at).toLocaleString()}</span>
+            {commit.additions !== null && (
+              <span className="badge">
+                <span className="stat-add">+{commit.additions}</span> <span className="stat-del">−{commit.deletions}</span>
+              </span>
+            )}
+          </div>
           <h3>Commit message</h3>
           <pre className="msgbox">{commit.message}</pre>
           <p className="muted">This message is all the explanation Git recorded for this change.</p>

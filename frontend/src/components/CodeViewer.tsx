@@ -40,7 +40,7 @@ export function CodeViewer({ repo, file, start, end }: Props) {
     <div className="viewer card">
       <div className="viewer-head">
         <strong>{file}</strong>
-        <span className="muted"> lines {start}-{end}</span>
+        <span className="range">lines {start}–{end}</span>
       </div>
       {error && <p className="error">{error}</p>}
       {!lines && !error && <p className="muted">Loading...</p>}

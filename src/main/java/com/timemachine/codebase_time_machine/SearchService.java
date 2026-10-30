@@ -1,6 +1,8 @@
 package com.timemachine.codebase_time_machine;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +59,48 @@ public class SearchService {
                 HIT_MAPPER, tsQuery, repo, k);
     }
 
+    // Best chunks (by meaning) inside a given set of files.
+    public List<Hit> inFiles(String repo, String question, List<String> files, int k) {
+        if (files.isEmpty()) {
+            return List.of();
+        }
+        String q = embeddings.embedQuery(question);
+        String marks = String.join(",", Collections.nCopies(files.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(q);
+        args.add(repo);
+        args.addAll(files);
+        args.add(q);
+        args.add(k);
+        return jdbc.query(
+                "SELECT id, file_path, start_line, end_line, kind, name, content, "
+                        + "1 - (embedding <=> ?::vector) AS score "
+                        + "FROM code_chunks WHERE repo = ? AND embedding IS NOT NULL AND file_path IN (" + marks + ") "
+                        + "ORDER BY embedding <=> ?::vector LIMIT ?",
+                HIT_MAPPER, args.toArray());
+    }
+    // The best chunks (by meaning) of EACH given file, best-ranked first across files.
+    public List<Hit> perFile(String repo, String question, List<String> files, int perFile) {
+        if (files.isEmpty()) {
+            return List.of();
+        }
+        String q = embeddings.embedQuery(question);
+        String marks = String.join(",", Collections.nCopies(files.size(), "?"));
+        List<Object> args = new ArrayList<>();
+        args.add(q);
+        args.add(q);
+        args.add(repo);
+        args.addAll(files);
+        args.add(perFile);
+        return jdbc.query(
+                "SELECT id, file_path, start_line, end_line, kind, name, content, score FROM ("
+                        + "SELECT id, file_path, start_line, end_line, kind, name, content, "
+                        + "1 - (embedding <=> ?::vector) AS score, "
+                        + "ROW_NUMBER() OVER (PARTITION BY file_path ORDER BY embedding <=> ?::vector) AS rn "
+                        + "FROM code_chunks WHERE repo = ? AND embedding IS NOT NULL AND file_path IN (" + marks + ")"
+                        + ") t WHERE rn <= ? ORDER BY rn, score DESC",
+                HIT_MAPPER, args.toArray());
+    }
     // Both librarians, merged. Test files are down-weighted unless the question mentions tests.
     public List<Hit> hybrid(String repo, String question, int k) {
         boolean wantsTests = question.toLowerCase().contains("test");

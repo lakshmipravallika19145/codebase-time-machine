@@ -41,16 +41,17 @@ export function Chat(p: Props) {
   return (
     <div className="card chat">
       <div className="modes">
-        <label>
-          <input type="radio" checked={p.mode === 'full'} onChange={() => p.onMode('full')} /> Code + why
-        </label>
-        <label>
-          <input type="radio" checked={p.mode === 'history'} onChange={() => p.onMode('history')} /> History
-        </label>
+        <div className="segmented" role="tablist">
+          <button type="button" id="mode-full" className={p.mode === 'full' ? 'on' : ''} onClick={() => p.onMode('full')}>
+            Code + why
+          </button>
+          <button type="button" id="mode-history" className={p.mode === 'history' ? 'on' : ''} onClick={() => p.onMode('history')}>
+            History
+          </button>
+        </div>
         {p.mode === 'history' && (
-          <label className="muted">
-            <input type="checkbox" checked={p.recent} onChange={e => p.onRecent(e.target.checked)} /> latest
-            commits only
+          <label className="toggle muted">
+            <input type="checkbox" checked={p.recent} onChange={e => p.onRecent(e.target.checked)} /> Latest commits only
           </label>
         )}
       </div>
@@ -58,7 +59,8 @@ export function Chat(p: Props) {
       <div className="messages">
         {p.messages.length === 0 && (
           <div className="examples">
-            <p className="muted">Try a question:</p>
+            <h3>{p.mode === 'full' ? 'Where does it live, and why?' : 'Travel through the history'}</h3>
+            <p className="muted">{p.repo ? 'Try one of these to get started:' : 'Index or select a repository to begin.'}</p>
             {EXAMPLES[p.mode].map(q => (
               <button key={q} className="example" onClick={() => submit(q)} disabled={!p.repo || p.asking}>
                 {q}
@@ -68,41 +70,54 @@ export function Chat(p: Props) {
         )}
         {p.messages.map(m => (
           <div key={m.id} className={`msg ${m.role}${m.error ? ' error' : ''}`}>
-                        {m.role === 'assistant' && !m.error && m.mono ? (
-                          <pre className="msgbox">{m.text}</pre>
-                        ) : m.role === 'assistant' && !m.error ? (
-                          <Answer text={m.text} onCode={p.onCode} onCommit={p.onCommit} />
-                        ) : (
-                          <div className="plain">{m.text}</div>
-                        )}
-                        {m.role === 'assistant' && m.coverage && <div className="badge">{m.coverage}</div>}
-            {m.role === 'assistant' && ((m.verified ?? 0) > 0 || (m.rejected ?? 0) > 0) && (
-              <div className="badge">
-                {m.verified ?? 0} citation{m.verified === 1 ? '' : 's'} verified
-                {m.rejected ? `, ${m.rejected} unverifiable removed` : ''}
+            {m.role === 'assistant' && !m.error && m.mono ? (
+              <pre className="msgbox">{m.text}</pre>
+            ) : m.role === 'assistant' && !m.error ? (
+              <Answer text={m.text} onCode={p.onCode} onCommit={p.onCommit} />
+            ) : (
+              <div className="plain">{m.text}</div>
+            )}
+            {m.role === 'assistant' && (m.coverage || (m.verified ?? 0) > 0 || (m.rejected ?? 0) > 0) && (
+              <div className="badges">
+                {((m.verified ?? 0) > 0 || (m.rejected ?? 0) > 0) && (
+                  <span className="badge ok">
+                    ✓ {m.verified ?? 0} citation{m.verified === 1 ? '' : 's'} verified
+                  </span>
+                )}
+                {(m.rejected ?? 0) > 0 && <span className="badge warn">{m.rejected} unverifiable removed</span>}
+                {m.coverage && <span className="badge">{m.coverage}</span>}
               </div>
             )}
           </div>
         ))}
-        {p.asking && <div className="msg assistant muted">Searching and thinking...</div>}
+        {p.asking && (
+          <div className="msg assistant">
+            <span className="typing">
+              <i />
+              <i />
+              <i /> Searching and thinking… architecture and flow questions use several steps and can take 1-2 minutes.
+            </span>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 
       <form
-        className="row"
+        className="row composer"
         onSubmit={e => {
           e.preventDefault()
           submit(input)
         }}
       >
         <input
-          placeholder={p.repo ? 'Ask about the code or its history' : 'Index or select a repository first'}
+          id="question-input"
+          placeholder={p.repo ? 'Ask about the code or its history…' : 'Index or select a repository first'}
           value={input}
           onChange={e => setInput(e.target.value)}
           maxLength={500}
           disabled={!p.repo}
         />
-        <button type="submit" disabled={!p.repo || p.asking || !input.trim()}>
+        <button id="ask-button" type="submit" disabled={!p.repo || p.asking || !input.trim()}>
           Ask
         </button>
       </form>
